@@ -77,6 +77,16 @@ if __name__ == "__main__":
   parser.add_argument("--test", '-t', action="store_true", help="Run tests")
   args = parser.parse_args()
 
+  if not args.test:
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=1)
+
+    es = Elasticsearch()
+    print(helpers.bulk(es, generate_doc('test-metrics', metric_names, tags, start_date, end_date, True)))
+
+    sys.exit(0)
+
+
   class TestStringMethods(unittest.TestCase):
 
     def test_upper(self):
@@ -108,13 +118,6 @@ if __name__ == "__main__":
       self.maxDiff = None
       self.assertEqual(docs, correct_result)
 
-  if args.test:
-    sys.argv[1:] = []
-    print(sys.argv)
-    unittest.main()
-  else:
-    end_date = datetime.utcnow()
-    start_date = end_date - timedelta(days=1)
-
-    es = Elasticsearch()
-    print(helpers.bulk(es, generate_doc('test-metrics', metric_names, tags, start_date, end_date, True)))
+  # We need to clear the arguments, since they will be interpreted by unittest
+  sys.argv[1:] = []
+  unittest.main()
