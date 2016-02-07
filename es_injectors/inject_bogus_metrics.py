@@ -10,9 +10,15 @@ def daterange(start_date, end_date, time_delta=timedelta(hours=4)):
     yield current_date
     current_date += time_delta
 
+metrics_data = {
+  "cpu": ["host", "cluster", "os"],
+  "used_memory": ["fqdn", "cluster"]
+  }
+
 NB_METRICS = 1
 metric_names = ['metric_'+str(i) for i in range(0,NB_METRICS)]
 hosts = ['fqdn_'+str(i) for i in range(0,NB_METRICS)]
+
 
 number_tags = 3
 tags = {}
@@ -24,12 +30,12 @@ def next_tags_positions(tags, tags_positions, nb_tag_values):
      the given array to reflect the next tags_positions"""
   i = len(tags) - 1
   while i >= 0:
-    if tags_positions[i] != nb_tag_values - 1: 
+    if tags_positions[i] != nb_tag_values - 1:
       tags_positions[i] += 1
       return True
     elif i == 0:
       return False
-    elif tags_positions[i-1] != nb_tag_values - 1: 
+    elif tags_positions[i-1] != nb_tag_values - 1:
       # We increment the previous number, and reset all others thereafter
       tags_positions[i-1] += 1
       for j in range(i, len(tags)):
@@ -93,7 +99,7 @@ if __name__ == "__main__":
       end_date = datetime.utcnow()
       start_date = end_date - timedelta(minutes=50)
 
-      
+
       docs = []
       for doc in generate_doc('test-metrics', ["metric_1"], {"metric_1": ["tag1_1", "tag1_2", "tag1_3"]}, start_date, end_date):
         # We remove the timestamp which changes at every execution
@@ -105,7 +111,7 @@ if __name__ == "__main__":
         docs.append(doc)
 
       correct_result = \
-      [ 
+      [
         {'_type': 'metric_1', '_index': 'test-metrics', 'tag1_1': 'tag1_1_value0', 'tag1_2': 'tag1_2_value0', 'tag1_3': 'tag1_3_value0'},
         {'_type': 'metric_1', '_index': 'test-metrics', 'tag1_1': 'tag1_1_value0', 'tag1_2': 'tag1_2_value0', 'tag1_3': 'tag1_3_value1'},
         {'_type': 'metric_1', '_index': 'test-metrics', 'tag1_1': 'tag1_1_value0', 'tag1_2': 'tag1_2_value1', 'tag1_3': 'tag1_3_value0'},
