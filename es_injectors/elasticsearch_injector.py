@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import socket, threading, argparse, logging, os, sys
+import socket, threading, argparse, logging, os, sys, time
 import logging
 from logging.handlers import RotatingFileHandler
 from elasticsearch import Elasticsearch
@@ -16,63 +16,104 @@ INDEX_NAME = 'test-metrics'
 
 class ElasticsearchSender:
 
-  def __init__(self, es, buffer_size = 500, max_delay = 60):
+  def __init__(self, es, buffer_size = 500, max_delay = 60, time_unit='ms'):
+    """An elasticsearch injector for data respecting the following format:
+
+    metric_name metric_value timestamp(in `time_unit`) [key=value, [key=value]]
+
+    It injects into elasticsearch considering it must send the date as
+    `epoch_millis`. Thus, if `time_unit` == 's', it will add 3 trailling zeros.
+
+    :param es: An Elasticsearch instance
+    :param buffer_size: The buffer size before using the bulk elastic API
+    :param max_delay: A `flush()` will be done when receiving a valid data if
+                      the last flush has been done for more than `max_delay` (seconds)
+    :param time_unit:
+
+    """
     self.es = es
     self.buffer = []
     self.buffer_size = buffer_size
     self.max_delay = max_delay
+    self.time_unit = time_unit
+    self.last_flush = time.time()
 
-  def push(self, metrics):
+  def push(self, metrics, logging_prefix=''):
+    """
+    :param metrics: An iterable of string, each repreasenting a metric data
+    :param logging_prefix: A prefix to use for error logging messages
+    """
     """A list of strings representing metrics"""
     docs = list()
-    print(metrics)
     for metric in metrics:
+      do_break = False
       elements = metric.split(' ')
       if len(elements) < 3:
-        logging.warning('Incorrect metric received: ' + metric)
+        logging.warning(logging_prefix + 'Incorrect metric received: ' + metric)
         continue
-
       else:
-        print(elements)
         doc = {}
-        doc[elements[0]] = elements[1]
+        metric_name = elements[0].replace('.', '-')
+        doc[metric_name] = elements[1]
         doc['timestamp'] = elements[2]
+        if self.time_unit == 's':
+          doc['timestamp'] += '000'
         for tag in elements[3:]:
           split_tag = tag.split('=')
           if len(split_tag) != 2:
             logging.warning('Invalid tag: ' + tag + ' in: ' + metric)
+            do_break = True
+            break
           else:
             doc[split_tag[0]] = split_tag[1]
 
+        if do_break:
+          break
+
         self.buffer.append({'_index': INDEX_NAME,
-                            '_type': elements[0],
+                            '_type': metric_name,
                             '_source': doc})
-        print(self.buffer[-1])
-        if len(self.buffer) > self.buffer_size:
+
+        current_time = time.time()
+        if len(self.buffer) > self.buffer_size or (current_time - self.last_flush) > 60:
           flush()
+          self.last_flush = current_time
 
   def flush(self):
     nb_success, errors = helpers.bulk(es, self.buffer, chunk_size = 500, raise_on_error = False, raise_on_exception = False)
     logging.info((nb_success, errors))
 
 class ClientThread(threading.Thread):
+  """This thread will listen to a socket and send to the `injector` all
+     lines received for processing. It uses socket.recv() to read data from the
+     socket, and maintains an internal buffer to deal with incomplete lines.
 
-  def __init__(self, clientsocket, ip, port, es_client):
+
+     `injector` must implement push(lines) and flush()
+  """
+  def __init__(self, clientsocket, ip, port, injector):
+    """
+    :param clientsocket: A socket from which data will be received
+    :param ip: The ip of the client (only used for logging)
+    :param port: The port of the client socket (only used for logging)
+    :param injector: an object having ``push(string list)`` and ``flush()``
+                     defined
+    """
     threading.Thread.__init__(self)
-    self.clientsocket = clientsocket
+    self.injectorsocket = clientsocket
     self.ip = ip
     self.port = port
-    self.es_client = es_client
+    self.injector = injector
     logging.info("[+] New thread for " + str(self.ip) + ':' + str(self.port))
 
   def run(self):
     remainer = ''
     while True:
-      data = self.clientsocket.recv(1024)
+      data = self.injectorsocket.recv(1024)
       print('Received: ' + data)
       if not data:
-        self.clientsocket.close()
-        logging.info('[-] Connected closed by ' + str(self.ip) + ':' + str(self.port))
+        self.injectorsocket.close()
+        logging.info('[-] Connection closed by ' + str(self.ip) + ':' + str(self.port))
         return
       logging.debug('Received: ' + data)
 
@@ -82,39 +123,20 @@ class ClientThread(threading.Thread):
 
       if end_with_new_line:
         if remainer == '':
-          self.es_client.push(lines[:-1])
+          self.injector.push(lines[:-1], logging_prefix='['+str(self.ip)+':'+str(self.port)+']')
         else:
           end = lines.pop(0)
           remainer += end
-          self.es_client.push([remainer])
+          self.injector.push([remainer])
           remainer = ''
-          self.es_client.push(lines)
+          self.injector.push(lines)
       else:
         end = lines.pop(0)
         remainer += end
         if len(lines) > 0:
-          self.es_client.push([remainer])
-          self.es_client.push[lines[:-1]]
+          self.injector.push([remainer])
+          self.injector.push[lines[:-1]]
           remainer = lines[-1]
-
-def main(args):
-
-  threads = []
-  for i in range(10):
-    t = Worker()
-    threads.append(t)
-    t.start()
-
-  while len(threads) > 0:
-    try:
-      # Join all threads using a timeout so it doesn't block
-      # Filter out threads which have been joined or are None
-      threads = [t.join(1) for t in threads if t is not None and t.isAlive()]
-    except KeyboardInterrupt:
-      print "Ctrl-c received! Sending kill to threads..."
-      for t in threads:
-          t.kill_received = True
-
 
 if __name__ == '__main__':
 
