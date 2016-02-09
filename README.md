@@ -1,6 +1,8 @@
 
 Elasticsearch based Metrics storage
 ===================================
+.. image:: http://elasticsearch-metrics-tools.readthedocs.org/en/latest/?badge=latest
+   :target: elasticsearch-metrics-tools.rtfd.org
 
 This projects provides Python tools to use Elasticsearch as a metric database, in particular using Grafana for visualization. It is Python 2 and 3 compatible.
 
@@ -21,7 +23,7 @@ Compatible with:
 Documentation
 -------------
 
-The documentation is available within the `docs/` directory.
+`<http://elasticsearch-metrics-tools.rtfd.org/>`_
 
 Dependencies
 ------------
@@ -33,3 +35,4 @@ When using Python 3:
 
 For documentation(todo):
     sudo easy_install sphinx
+    pip install sphinx_rtd_theme
