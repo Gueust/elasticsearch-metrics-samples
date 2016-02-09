@@ -1,15 +1,14 @@
 
 Elasticsearch based Metrics storage
 ===================================
-.. image:: http://elasticsearch-metrics-tools.readthedocs.org/en/latest/?badge=latest
-   :target: elasticsearch-metrics-tools.rtfd.org
+[![Documentation build status](https://readthedocs.org/projects/elasticsearch-metrics-tools/badge/?version=latest)](elasticsearch-metrics-tools.rtfd.org)
 
 This projects provides Python tools to use Elasticsearch as a metric database, in particular using Grafana for visualization. It is Python 2 and 3 compatible.
 
 It contains:
   * a metrics aggregator server that injects metrics into
 elasticsearch. It is compatible with the
-`OpenTsdb tcollector <https://github.com/OpenTSDB/tcollector>`_ data collection
+[OpenTsdb tcollector](https://github.com/OpenTSDB/tcollector) data collection
 framework ;
   * a generator of bogus metrics for tests purposes.
 
@@ -23,7 +22,7 @@ Compatible with:
 Documentation
 -------------
 
-`<http://elasticsearch-metrics-tools.rtfd.org/>`_
+[Online documentation](http://elasticsearch-metrics-tools.rtfd.org/)
 
 Dependencies
 ------------
