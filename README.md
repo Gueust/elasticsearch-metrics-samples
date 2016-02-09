@@ -18,6 +18,11 @@ Compatible with:
  * Python >= 2.7
  * Python 3
 
+Documentation
+-------------
+
+The documentation is available within the `docs/` directory.
+
 Dependencies
 ------------
 When using Python 2:
