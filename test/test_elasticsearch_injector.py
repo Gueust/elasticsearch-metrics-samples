@@ -28,14 +28,17 @@ class TestElasticsearchSender(unittest.TestCase):
     sender = es.ElasticsearchSender(None)
 
     sender.push(['one'])
-    self.assertTrue(self._logger_handler.messages['warning'][0].startswith('Incorrect metric received:'))
+    self.assertTrue(self._logger_handler.messages['warning'][0].startswith('Incorrect metric received:'),
+                    msg=self._logger_handler)
     self._logger_handler.reset()
     sender.push(['one two'])
-    self.assertTrue(self._logger_handler.messages['warning'][0].startswith('Incorrect metric received:'))
+    self.assertTrue(self._logger_handler.messages['warning'][0].startswith('Incorrect metric received:'),
+                    msg=self._logger_handler)
     self._logger_handler.reset()
 
     sender.push(['one two three four'])
-    self.assertTrue(self._logger_handler.messages['warning'][0].startswith('Invalid tag:'))
+    self.assertTrue(self._logger_handler.messages['warning'][0].startswith('Invalid tag:'),
+                    msg=self._logger_handler)
     self._logger_handler.reset()
 
     # Monday 8 February 2016, 21:16:00 (UTC+0100)

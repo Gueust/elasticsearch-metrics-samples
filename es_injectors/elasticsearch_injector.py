@@ -16,7 +16,7 @@ INDEX_NAME = 'test-metrics'
 
 class ElasticsearchSender:
 
-  def __init__(self, es, buffer_size = 500, max_delay = 60, time_unit='ms'):
+  def __init__(self, es, opentsdb_put = False, buffer_size = 500, max_delay = 60, time_unit='ms'):
     """An elasticsearch injector for data respecting the following format:
 
     metric_name metric_value timestamp(in `time_unit`) [key=value, [key=value]]
@@ -32,6 +32,7 @@ class ElasticsearchSender:
 
     """
     self.es = es
+    self.opentsdb_put = opentsdb_put
     self.buffer = []
     self.buffer_size = buffer_size
     self.max_delay = max_delay
@@ -47,6 +48,13 @@ class ElasticsearchSender:
     docs = list()
     for metric in metrics:
       do_break = False
+
+      if self.opentsdb_put:
+        if metric[0] != "put":
+          logging.warning(logging_prefix + 'Invalid opentsdb put line: ' + metric)
+          continue
+        metric = metric[1:]
+
       elements = metric.split(' ')
       if len(elements) < 3:
         logging.warning(logging_prefix + 'Incorrect metric received: ' + metric)
@@ -140,6 +148,11 @@ class ClientThread(threading.Thread):
 
 if __name__ == '__main__':
 
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--opentsdb_format", action='store_true', help="Consider lines to be introduced by the 'put' keyword")
+  parser.parse_args()
+
+
   log_dir = os.path.dirname(LOG_PATH)
   if not os.path.isdir(log_dir):
     print('Creating log directory: ' + log_dir)
@@ -174,7 +187,7 @@ if __name__ == '__main__':
                      sniff_on_connection_fail=True,
                      sniffer_timeout=60*5,
                      maxsize=10)
-  es_sender = ElasticsearchSender(es)
+  es_sender = ElasticsearchSender(es, opentsdb_put = parser.opentsdb_format)
 
   try:
     while True:

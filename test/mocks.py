@@ -28,3 +28,6 @@ class MockLoggingHandler(logging.Handler):
         del message_list[:]
     finally:
       self.release()
+
+  def __str__(self):
+    return str(self.messages)
