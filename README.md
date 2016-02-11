@@ -1,7 +1,12 @@
 
 Elasticsearch based Metrics storage
 ===================================
+
+![Travis tests](https://travis-ci.org/Gueust/elasticsearch-metrics-tools.svg?branch=master)
+
 [![Documentation build status](https://readthedocs.org/projects/elasticsearch-metrics-tools/badge/?version=latest)](elasticsearch-metrics-tools.rtfd.org)
+
+
 
 This projects provides Python tools to use Elasticsearch as a metric database, in particular using Grafana for visualization. It is Python 2 and 3 compatible.
 
@@ -26,11 +31,14 @@ Documentation
 
 Dependencies
 ------------
-When using Python 2:
-    pip install elasticsearch
 
-When using Python 3:
-    pip3 install elasticsearch
+When using Python 2:
+
+    pip install -r requirements.txt
+
+When using Python 2:
+
+    pip3 install -r requirements.txt
 
 For documentation(todo):
     sudo easy_install sphinx
