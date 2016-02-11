@@ -3,7 +3,6 @@ Elasticsearch based Metrics storage
 ===================================
 
 ![Travis tests](https://travis-ci.org/Gueust/elasticsearch-metrics-tools.svg?branch=master)
-
 [![Documentation build status](https://readthedocs.org/projects/elasticsearch-metrics-tools/badge/?version=latest)](elasticsearch-metrics-tools.rtfd.org)
 
 
