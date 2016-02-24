@@ -4,18 +4,12 @@ import random, time, collections, copy, argparse, sys
 from elasticsearch import Elasticsearch
 from elasticsearch import helpers
 
-def daterange(start_date, end_date, time_delta=timedelta(hours=4)):
-  current_date = start_date
-  while current_date < end_date:
-    yield current_date
-    current_date += time_delta
-
 metrics_data = {
   "cpu": ["host", "cluster", "os"],
   "used_memory": ["fqdn", "cluster"]
   }
 
-NB_METRICS = 1
+NB_METRICS = 3
 metric_names = ['metric_'+str(i) for i in range(0,NB_METRICS)]
 hosts = ['fqdn_'+str(i) for i in range(0,NB_METRICS)]
 
@@ -24,6 +18,13 @@ number_tags = 3
 tags = {}
 for metric in metric_names:
   tags[metric] = [metric  + '_tag_'+str(i)for i in range(0, number_tags)]
+
+
+def daterange(start_date, end_date, time_delta=timedelta(hours=1)):
+  current_date = start_date
+  while current_date < end_date:
+    yield current_date
+    current_date += time_delta
 
 def next_tags_positions(tags, tags_positions, nb_tag_values):
   """Returns true if there is a next position, in which case it modifies
@@ -85,7 +86,7 @@ if __name__ == "__main__":
 
   if not args.test:
     end_date = datetime.utcnow()
-    start_date = end_date - timedelta(days=1)
+    start_date = end_date - timedelta(days=7)
 
     es = Elasticsearch()
     print(helpers.bulk(es, generate_doc('test-metrics', metric_names, tags, start_date, end_date, True)))
