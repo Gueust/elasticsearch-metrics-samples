@@ -89,6 +89,7 @@ class ElasticsearchSender:
 
   def flush(self):
     nb_success, errors = helpers.bulk(es, self.buffer, chunk_size = 500, raise_on_error = False, raise_on_exception = False)
+    del self.buffer[:]
     logging.info((nb_success, errors))
 
 class ClientThread(threading.Thread):
