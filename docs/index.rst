@@ -95,7 +95,7 @@ The expected format for the data received by the aggregator is::
 
 For instance::
 
-
+..
 
 You can of course inject your data using directly the elasticsearch API.
 Howerver, do not forget that:
