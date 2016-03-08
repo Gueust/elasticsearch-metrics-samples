@@ -22,6 +22,7 @@ class OpenTsdbParser:
 
   def __init__(self, time_unit='ms'):
     self.time_unit = time_unit
+    self.logger = logging.getLogger('OpenTsdbParser')
 
   def parse(self, metric, logging_prefix=''):
     """Returns None if the parsing is invalid, the json document otherwise
@@ -31,12 +32,12 @@ class OpenTsdbParser:
     elements = metric.split(' ')
 
     if elements[0] != "put":
-      logging.warning(logging_prefix + 'Invalid opentsdb put line: ' + metric)
+      self.logger.warning(logging_prefix + "Invalid opentsdb put line: '" + metric + "'")
       return None
     elements = elements[1:]
 
     if len(elements) < 3:
-      logging.warning(logging_prefix + 'Incorrect metric received: ' + metric)
+      self.logger.warning(logging_prefix + "Incorrect metric received: '" + metric + "'")
       return None
 
     doc = {}
@@ -48,7 +49,7 @@ class OpenTsdbParser:
     for tag in elements[3:]:
       split_tag = tag.split('=')
       if len(split_tag) != 2:
-        logging.warning(logging_prefix + 'Invalid tag: ' + tag + ' in: ' + metric)
+        self.logger.warning(logging_prefix + 'Invalid tag: ' + tag + " in: '"+ metric + "'")
         return None
 
       doc[split_tag[0]] = split_tag[1]
@@ -57,7 +58,7 @@ class OpenTsdbParser:
 
 class ElasticsearchSender:
 
-  def __init__(self, es, parser, buffer_size = 500, max_delay = 60, time_unit='ms'):
+  def __init__(self, parser, es, index, buffer_size = 5000, max_delay = 60, time_unit='ms'):
     """An elasticsearch injector for data respecting the following format:
 
     metric_name metric_value timestamp(in `time_unit`) [key=value, [key=value]]
@@ -73,8 +74,9 @@ class ElasticsearchSender:
     :param time_unit:
 
     """
-    self.es = es
     self.parser = parser
+    self.es = es
+    self.index = index
     self.buffer_size = buffer_size
     self.max_delay = max_delay
     self.time_unit = time_unit
@@ -83,6 +85,8 @@ class ElasticsearchSender:
     self.last_flush = time.time()
     self.lock = threading.RLock()
 
+    self.logger = logging.getLogger('ElasticsearchSender')
+
   def push(self, metrics, logging_prefix=''):
     """
     :param metrics: An iterable of string, each repreasenting a metric data
@@ -90,14 +94,13 @@ class ElasticsearchSender:
     """A list of strings representing metrics"""
     docs = list()
     for metric in metrics:
-
       line = self.parser.parse(metric, logging_prefix=logging_prefix)
 
       if line is None:
         continue
 
       self.lock.acquire()
-      self.buffer.append({'_index': INDEX_NAME,
+      self.buffer.append({'_index': self.index,
                           '_type': line[0],
                           '_source': line[1]})
 
@@ -109,11 +112,12 @@ class ElasticsearchSender:
 
   def flush(self):
     self.lock.acquire()
+    logging.critical('Buffer:' + str(len(self.buffer)))
     nb_success, errors = helpers.bulk(self.es, self.buffer, chunk_size = 500, raise_on_error = False, raise_on_exception = False)
     del self.buffer[:]
     self.lock.release()
 
-    logging.info((nb_success, errors))
+    self.logger.info((nb_success, errors))
 
 class ClientThread(threading.Thread):
   """This thread will listen to a socket and send to the `injector` all
@@ -136,25 +140,31 @@ class ClientThread(threading.Thread):
     self.ip = ip
     self.port = port
     self.injector = injector
-    logging.info("[+] New thread for " + str(self.ip) + ':' + str(self.port))
+
+    self.logger = logging.getLogger('ClientThread')
+
+    self.logger.info("[+] New thread for " + str(self.ip) + ':' + str(self.port))
 
   def run(self):
     remainer = ''
     try:
       while True:
         data = self.clientsocket.recv(1024)
+
         #print('Received: ' + data)
         if not data:
           self.clientsocket.close()
-          logging.info('[-] Connection closed by ' + str(self.ip) + ':' + str(self.port))
+          self.logger.info('[-] Connection closed by ' + str(self.ip) + ':' + str(self.port))
           return
-        logging.debug('Received: ' + data)
+        #self.logger.debug('Received: ' + data)
 
         end_with_new_line = data.endswith('\n')
         #print('Endwish:' + str(end_with_new_line))
         lines = data.split('\n')
 
         if end_with_new_line:
+          # When ending with a new line, the last element of lines is the empty string ''
+          lines = lines[:-1]
           if remainer == '':
             self.injector.push(lines[:-1], logging_prefix='['+str(self.ip)+':'+str(self.port)+']')
           else:
@@ -168,14 +178,14 @@ class ClientThread(threading.Thread):
           remainer += end
           if len(lines) > 0:
             self.injector.push([remainer])
-            self.injector.push[lines[:-1]]
+            self.injector.push(lines[:-1])
             remainer = lines[-1]
     finally:
       self.clientsocket.close()
 
 class AggregatorServer(threading.Thread):
 
-  def __init__(self, bind_host, bind_port, injector, logger=logging.getLogger()):
+  def __init__(self, bind_host, bind_port, injector):
     """
     :param clientsocket: A socket from which data will be received
     :param ip: The ip of the client (only used for logging)
@@ -188,7 +198,7 @@ class AggregatorServer(threading.Thread):
     self.host = bind_host
     self.port = bind_port
     self.injector = injector
-    self.logger = logger
+    self.logger = logging.getLogger('AggregatorServer')
 
   def run(self):
 
@@ -202,7 +212,7 @@ class AggregatorServer(threading.Thread):
       self.logger.critical('Exiting...')
       sys.exit(1)
 
-    serversocket.listen(5)
+    serversocket.listen(10)
     self.logger.info('Socket now listening to ' + str(self.port))
 
     try:
@@ -248,7 +258,7 @@ if __name__ == '__main__':
                      sniff_on_connection_fail=True,
                      sniffer_timeout=60*5,
                      maxsize=10)
-  es_injector = ElasticsearchSender(es, parser)
+  es_injector = ElasticsearchSender(parser, es, INDEX_NAME)
 
   server = AggregatorServer(HOST, args.port, es_injector)
   #server.setDaemon(True)
