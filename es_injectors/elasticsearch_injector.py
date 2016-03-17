@@ -207,7 +207,7 @@ class AggregatorServer(threading.Thread):
       serversocket.bind((self.host, self.port)) #socket.gethostname()
       self.logger.info('Socket bind completed: ' + socket.gethostname() + ':' + str(self.port))
     except socket.error as msg:
-      self.logger.critical('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
+      self.logger.critical('Bind failed: ' + str(msg))
       self.logger.critical('Exiting...')
       sys.exit(1)
 
