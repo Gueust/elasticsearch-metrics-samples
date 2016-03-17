@@ -119,7 +119,7 @@ import random, threading, socket
 
 class TestAggregatorServer(unittest.TestCase):
 
-  metric_index = 'blog-index'
+  metric_index = 'es_injector_test'
   bind_port = 8888
   host = '0.0.0.0'
 
@@ -143,7 +143,7 @@ class TestAggregatorServer(unittest.TestCase):
       for i in range(0, self.iterations):
         t = int(time.time())
         value = random.random()
-        client_socket.sendall('put metric' + str(self.client_id) + ' ' + str(value) + ' ' + str(t) + ' host=me cluster=cluster1\n')
+        client_socket.sendall( ('put metric' + str(self.client_id) + ' ' + str(value) + ' ' + str(t) + ' host=me cluster=cluster1\n').encode() )
 
       client_socket.close()
 
@@ -151,20 +151,22 @@ class TestAggregatorServer(unittest.TestCase):
     if self.es_client.indices.exists(index):
       self.es_client.indices.delete(index)
 
+  def _create_index(self, index):
+    if not self.es_client.indices.exists(index):
+      self.es_client.indices.create(index)
+
   def setUp(self):
     #self._logger_handler.reset() # So each test is independent
     logging.basicConfig(format='%(asctime)s %(message)s', level=logging.WARN)
     logging.getLogger('elasticsearch').setLevel(logging.WARN)
     self.es_client = get_test_client() #TEST_ES_SERVER
    # logging.getLogger().setLevel(logging.WARN)
-
+    self._create_index(self.metric_index)
 
   def tearDown(self):
-    #self._delete_index(self.metric_index)
-    pass
+    self._delete_index(self.metric_index)
 
   def test_many_injections(self):
-    self._delete_index(self.metric_index)
 
     parser = es.OpenTsdbParser()
     es_injector = es.ElasticsearchSender(parser, self.es_client, self.metric_index)
@@ -185,8 +187,8 @@ class TestAggregatorServer(unittest.TestCase):
     for client in clients:
       client.join()
 
-    # We need the client thread to be executed the code associated with the
-    # closing of the socket
+    # We need the server client threads to executed the code associated with
+    # the closing of the socket
     time.sleep(1)
 
     es_injector.flush()
@@ -199,9 +201,8 @@ class TestAggregatorServer(unittest.TestCase):
     index_count = self.es_client.count(index=self.metric_index)
     should_count = iterations_per_client * nb_clients
 
-    print('Should be' + str( iterations_per_client * nb_clients))
-    print('Is' + str( index_count))
-    self.assertEqual(index_count['count'], should_count) #, msg=str(index_count) + 'vs' + str(should_count)
+    self.assertEqual(index_count['count'], should_count, \
+      'The number of documents ('+ str(index_count['count']) + ') should be ' + str(should_count))
 
 
 if __name__ == "__main__":

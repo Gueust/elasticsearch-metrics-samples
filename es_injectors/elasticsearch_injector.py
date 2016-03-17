@@ -112,7 +112,6 @@ class ElasticsearchSender:
 
   def flush(self):
     self.lock.acquire()
-    logging.critical('Buffer:' + str(len(self.buffer)))
     nb_success, errors = helpers.bulk(self.es, self.buffer, chunk_size = 500, raise_on_error = False, raise_on_exception = False)
     del self.buffer[:]
     self.lock.release()
@@ -149,7 +148,7 @@ class ClientThread(threading.Thread):
     remainer = ''
     try:
       while True:
-        data = self.clientsocket.recv(1024)
+        data = self.clientsocket.recv(1024).decode()
 
         #print('Received: ' + data)
         if not data:
