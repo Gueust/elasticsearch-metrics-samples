@@ -87,13 +87,17 @@ class ElasticsearchSender:
 
     self.logger = logging.getLogger('ElasticsearchSender')
 
-  def push(self, metrics, logging_prefix=''):
+  def push(self, metrics, socket=None, logging_prefix=''):
     """
     :param metrics: An iterable of string, each repreasenting a metric data
     """
     """A list of strings representing metrics"""
     docs = list()
     for metric in metrics:
+
+      if metric == 'version' and socket is not None:
+        socket.sendall( (VERSION + '\n').encode() )
+
       line = self.parser.parse(metric, logging_prefix=logging_prefix)
 
       if line is None:
@@ -165,19 +169,19 @@ class ClientThread(threading.Thread):
           # When ending with a new line, the last element of lines is the empty string ''
           lines = lines[:-1]
           if remainer == '':
-            self.injector.push(lines[:], logging_prefix='['+str(self.ip)+':'+str(self.port)+']')
+            self.injector.push(lines[:], socket=self.clientsocket, logging_prefix='['+str(self.ip)+':'+str(self.port)+']')
           else:
             end = lines.pop(0)
             remainer += end
-            self.injector.push([remainer])
+            self.injector.push([remainer], socket=self.clientsocket)
             remainer = ''
-            self.injector.push(lines)
+            self.injector.push(lines, socket=self.clientsocket)
         else:
           end = lines.pop(0)
           remainer += end
           if len(lines) > 0:
-            self.injector.push([remainer])
-            self.injector.push(lines[:-1])
+            self.injector.push([remainer], socket=self.clientsocket)
+            self.injector.push(lines[:-1], socket=self.clientsocket)
             remainer = lines[-1]
     finally:
       self.clientsocket.close()

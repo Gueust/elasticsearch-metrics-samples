@@ -23,7 +23,6 @@ class TestOpenTsdbParser(unittest.TestCase):
     self._logger_handler.reset() # So each test is independent
 
   def test_parse(self):
-    """Test parsing within push() function"""
     parser = es.OpenTsdbParser()
 
     self._logger_handler.reset()
@@ -113,97 +112,5 @@ class TestElasticsearchSender(unittest.TestCase):
     length = len(es_injector.buffer)
     self.assertTrue(length == 0, 'The buffer should be empty: ' + str(length))
 
-
-
-import random, threading, socket
-
-class TestAggregatorServer(unittest.TestCase):
-
-  metric_index = 'es_injector_test'
-  bind_port = 8888
-  host = '0.0.0.0'
-
-  class Client(threading.Thread):
-
-    def __init__(self, host, port, client_id, iterations):
-
-      threading.Thread.__init__(self, name='Client')
-      self.setDaemon(True)
-
-      self.host = host
-      self.port = port
-      self.client_id = client_id
-      self.iterations = iterations
-
-    def run(self):
-
-      client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      client_socket.connect(('localhost', self.port))
-
-      for i in range(0, self.iterations):
-        t = int(time.time())
-        value = random.random()
-        client_socket.sendall( ('put metric' + str(self.client_id) + ' ' + str(value) + ' ' + str(t) + ' host=me cluster=cluster1\n').encode() )
-
-      client_socket.close()
-
-  def _delete_index(self, index):
-    if self.es_client.indices.exists(index):
-      self.es_client.indices.delete(index)
-
-  def _create_index(self, index):
-    if not self.es_client.indices.exists(index):
-      self.es_client.indices.create(index)
-
-  def setUp(self):
-    #self._logger_handler.reset() # So each test is independent
-    logging.basicConfig(format='%(asctime)s %(message)s', level=logging.WARN)
-    logging.getLogger('elasticsearch').setLevel(logging.WARN)
-    self.es_client = get_test_client() #TEST_ES_SERVER
-   # logging.getLogger().setLevel(logging.WARN)
-    self._create_index(self.metric_index)
-
-  def tearDown(self):
-    self._delete_index(self.metric_index)
-
-  def test_many_injections(self):
-
-    parser = es.OpenTsdbParser()
-    es_injector = es.ElasticsearchSender(parser, self.es_client, self.metric_index)
-
-    server = es.AggregatorServer(self.host, self.bind_port, es_injector)
-    server.start()
-    # We make sure the server had time to start
-    time.sleep(1)
-
-    clients = list()
-    nb_clients = 20
-    iterations_per_client = 100
-    for i in range(0, nb_clients):
-      client = self.Client(self.host, self.bind_port, i, iterations_per_client)
-      clients.append(client)
-      client.start()
-
-    for client in clients:
-      client.join()
-
-    # We need the server client threads to executed the code associated with
-    # the closing of the socket
-    time.sleep(1)
-
-    es_injector.flush()
-
-    self.es_client.indices.flush(index=self.metric_index, wait_if_ongoing=True)
-
-    self.assertTrue(self.es_client.indices.exists(self.metric_index))
-
-    #print(self.es_client.count(index=self.metric_index))
-    index_count = self.es_client.count(index=self.metric_index)
-    should_count = iterations_per_client * nb_clients
-
-    self.assertEqual(index_count['count'], should_count, \
-      'The number of documents ('+ str(index_count['count']) + ') should be ' + str(should_count))
-
-
 if __name__ == "__main__":
-  unittest.main()
+  unittest.main(verbosity=2)
