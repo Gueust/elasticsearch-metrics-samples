@@ -171,10 +171,12 @@ class TestAggregatorServer(unittest.TestCase):
 
     server = es.AggregatorServer(self.host, self.bind_port, es_injector)
     server.start()
+    # We make sure the server had time to start
+    time.sleep(1)
 
     clients = list()
-    nb_clients = 1
-    iterations_per_client = 1000
+    nb_clients = 20
+    iterations_per_client = 100
     for i in range(0, nb_clients):
       client = self.Client(self.host, self.bind_port, i, iterations_per_client)
       clients.append(client)

@@ -166,7 +166,7 @@ class ClientThread(threading.Thread):
           # When ending with a new line, the last element of lines is the empty string ''
           lines = lines[:-1]
           if remainer == '':
-            self.injector.push(lines[:-1], logging_prefix='['+str(self.ip)+':'+str(self.port)+']')
+            self.injector.push(lines[:], logging_prefix='['+str(self.ip)+':'+str(self.port)+']')
           else:
             end = lines.pop(0)
             remainer += end
