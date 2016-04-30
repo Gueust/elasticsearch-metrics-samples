@@ -33,11 +33,13 @@ Dependencies
 
 When using Python 2:
 
-    pip install -r requirements.txt
+    sudo apt-get install python-pip
+    sudo pip install -r requirements.txt
 
-When using Python 2:
+When using Python 3:
 
-    pip3 install -r requirements.txt
+    sudo apt-get install python3-pip
+    sudo pip3 install -r requirements.txt
 
 For documentation(todo):
     sudo easy_install sphinx
