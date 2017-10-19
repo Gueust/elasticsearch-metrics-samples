@@ -91,6 +91,7 @@ The **elasticsearch_injector.py** script is a TCP server that will listen for me
 and inject them using the elasticsearch bulk API.
 
 The expected format for the data received by the aggregator is::
+
   metric_name value timestamp [key=value [key=value]]
 
 For instance::
